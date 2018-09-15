@@ -8,7 +8,9 @@ PIXI.utils.sayHello(type)
 let Application = PIXI.Application,
   loader = PIXI.loader,
   resources = PIXI.loader.resources,
-  Sprite = PIXI.Sprite;
+  Sprite = PIXI.Sprite,
+  TextureCache = PIXI.utils.TextureCache,
+  Rectangle = PIXI.Rectangle;
 
 let app = new Application({
   width: 768,
@@ -18,25 +20,15 @@ app.renderer.backgroundColor = 0x061639;
 document.body.appendChild(app.view);
 
 loader
-  .add([
-    "img/char.png",
-    "img/food.png"
-
-  ])
+  .add("img/sprites.json")
   .load(setup)
 
 function setup() {
-  let char = new Sprite(resources["img/char.png"].texture);
-  let food = new Sprite(resources["img/food.png"].texture);
+  let id = resources["img/sprites.json"].textures;
+  let apple = new Sprite(id["Apple"]);
 
-  let textArr = [char,
-    food
-  ];
+  apple.x = 40;
+  apple.y = 40;
 
-  for (i = 0; i < textArr.length; i++) {
-    textArr[i].x = 35 * i;
-    textArr[i].y = 35 * i;
-    app.stage.addChild(textArr[i]);
-  }
-
+  app.stage.addChild(apple);
 }
