@@ -1,10 +1,8 @@
 # Food Catcher
-===============
 
 Simple game based on pixi.js. I've created it do get familiar with this framework.
 
 ## How to run ?
-===============
 
 - clone this repo
 - run npm install
