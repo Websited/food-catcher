@@ -58,7 +58,7 @@ function setup() {
   gameScene.addChild(background, char, scoreDisp, missedDisp);
   endScene.addChild(endMessage, endScore);
 
-  char.x = gameScene.width / 2 - char.width / 2;
+  char.x = gameScene.width / 2 - 42;
   char.y = gameScene.height - bottomPlane - 84;
   char.vx = 0;
 
