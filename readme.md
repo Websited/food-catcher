@@ -7,6 +7,7 @@ Simple game based on pixi.js. I've created it do get familiar with this framewor
 - clone this repo
 - run npm install
 - run npm start
+- open http://localhost:8989 in your browser
 
 ## How to play?
 
