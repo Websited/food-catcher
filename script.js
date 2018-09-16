@@ -11,6 +11,8 @@ let Application = PIXI.Application,
   Sprite = PIXI.Sprite,
   TextureCache = PIXI.utils.TextureCache,
   Text = PIXI.Text,
+  TextStyle = PIXI.TextStyle,
+  Container = PIXI.Container,
   Rectangle = PIXI.Rectangle;
 
 let app = new Application({
@@ -26,6 +28,10 @@ loader
   .load(setup)
 
 let bottomPlane = 46,
+  style = new TextStyle({
+    fontSize: 30,
+    fill: "#FFE44C",
+  }),
   sprites,
   char,
   state,
@@ -34,46 +40,60 @@ let bottomPlane = 46,
   foodsCaught = 0,
   score = 0,
   missed = 0,
-  scoreDisp = new Text(`Score: ${score}`),
-  missedDisp = new Text(`Missed food: ${missed}/10`),
+  animations,
+  gameScene = new Container(),
+  endScene = new Container(),
+  endMessage = new Text(`Game over!`, style),
+  endScore = new Text(`Final score: ${score}`, style),
+  scoreDisp = new Text(`Score: ${score}`, style),
+  missedDisp = new Text(`Missed food: ${missed}/10`, style),
   left = keyboard(37),
   right = keyboard(39);
 
 function setup() {
-  sprites = PIXI.loader.resources["img/sprites.json"].textures;
+  state = play;
+  animations = loader.resources["img/sprites.json"].data.animations;
+  sprites = loader.resources["img/sprites.json"].textures;
   let background = new Sprite(resources["img/Background.png"].texture);
-  foodsSrc = ["Apple", "Bacon", "Brownie", "Cherry", "Chicken", "Cookie", "Honey", "Jam", "Jerky", ]
+  foodsSrc = ["Apple", "Bacon", "Brownie", "Cherry", "Chicken", "Cookie", "Honey", "Jam", "Jerky"]
   background.x = 0;
   background.y = 0;
-  app.stage.addChild(background);
+  gameScene.addChild(background);
 
   char = new Sprite(sprites["char_idle_0"]);
-  char.x = app.stage.width / 2 - char.width / 2;
-  char.y = app.stage.height - bottomPlane - char.height;
+  char.x = gameScene.width / 2 - char.width / 2;
+  char.y = gameScene.height - bottomPlane - char.height;
   char.vx = 0;
+
+  console.log(animations);
 
   scoreDisp.x = 20;
   scoreDisp.y = 20;
   missedDisp.x = 20;
   missedDisp.y = 50;
 
-  app.stage.addChild(background);
-  app.stage.addChild(char);
-  app.stage.addChild(scoreDisp);
-  app.stage.addChild(missedDisp);
 
-  state = play;
+  endMessage.x = 384 - endMessage.width / 2;
+  endScore.x = 384 - endScore.width / 2;
+  endMessage.y = 228;
+  endScore.y = 428;
 
-  (function timeout() {
-    setTimeout(function() {
-      var randomFood = randomInt(0, foodsSrc.length);
-      createFood(foodsSrc[randomFood]);
-      timeout();
-    }, 5000);
-  })();
-
+  app.stage.addChild(gameScene);
+  app.stage.addChild(endScene);
+  gameScene.addChild(background);
+  gameScene.addChild(char);
+  gameScene.addChild(scoreDisp);
+  gameScene.addChild(missedDisp);
+  endScene.addChild(endMessage);
+  endScene.addChild(endScore);
+  endScene.visible = false;
 
   app.ticker.add(delta => gameLoop(delta));
+
+  if (state = play) {
+    dropFood();
+    animateChar();
+  }
 }
 
 function gameLoop(delta) {
@@ -92,28 +112,75 @@ function play(delta) {
   foods.forEach(function(food) {
     food.y += food.vy
     if (hitTestRectangle(char, food)) {
-      app.stage.removeChild(food);
+      gameScene.removeChild(food);
       food.y = -1000;
       food.vy = 0;
       score += 1;
       scoreDisp.text = `Score: ${score}`;
     } else {
-      if (food.y > app.stage.height - bottomPlane) {
-        app.stage.removeChild(food);
+      if (food.y > gameScene.height - bottomPlane) {
+        gameScene.removeChild(food);
         food.y = -1000;
         food.vy = 0;
         missed += 1;
         missedDisp.text = `Missed food: ${missed}/10`;
+
+        if (missed >= 10) {
+          food.y = -1000;
+          food.vy = 0;
+          end();
+        }
       }
     }
   });
 }
 
-function end(){}
+function end() {
+  gameScene.visible = false;
+  endScene.visible = true;
+  endMessage.text = (`Game over!`);
+  endScore.text = (`Final score: ${score}`);
+}
+
+function animateChar() {
+  let animation = animations.char_idle;
+  let frame = 0;
+  let texture;
+  let animSpeed = 150;
+  setInterval(function() {
+    if (char.vx > 0) {
+      animation = animations.char_right;
+      animSpeed = 50;
+      frame = (frame + 1) % animation.length;
+    } else if (char.vx < 0) {
+      animation = animations.char_left;
+      animSpeed = 50;
+      frame = (frame + 1) % animation.length;
+    } else {
+      animation = animations.char_idle;
+      animSpeed = 150;
+      frame = (frame + 1) % animation.length;
+    }
+    texture = PIXI.Texture.fromFrame(`${animation[frame]}`);
+    char.texture = texture;
+  }, animSpeed);
+}
 
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+
+function dropFood() {
+  if (missed >= 10) {
+    return;
+  } else {
+    setTimeout(function() {
+      var randomFood = randomInt(0, foodsSrc.length);
+      createFood(foodsSrc[randomFood]);
+      dropFood();
+    }, 3000);
+  }
+};
 
 function keyboard(keyCode) {
   let key = {};
@@ -173,11 +240,13 @@ function createFood(foodName) {
   let dim = randomInt(12, 24);
   food.width = dim;
   food.height = dim;
-  food.x = randomInt(10, app.stage.width - food.width - 10);
+  food.x = randomInt(20, 768 - food.width - 20);
   food.y = -150;
-  food.vy = randomInt(2, 4);
+  if (state === play) {
+    food.vy = randomInt(10, 15);
+  }
   foods.push(food);
-  app.stage.addChild(food);
+  gameScene.addChild(food);
 }
 
 function contain(sprite, container) {
