@@ -1,77 +1,82 @@
-let Application = PIXI.Application,
-  loader = PIXI.loader,
-  resources = PIXI.loader.resources,
-  Sprite = PIXI.Sprite,
-  TextureCache = PIXI.utils.TextureCache,
-  Text = PIXI.Text,
-  TextStyle = PIXI.TextStyle,
-  Container = PIXI.Container,
-  Rectangle = PIXI.Rectangle;
-
-let app = new Application({
+let app = new PIXI.Application({
   width: 768,
   height: 656
 });
 app.renderer.backgroundColor = 0x061639;
 document.body.appendChild(app.view);
 
-//Variables to use in app
-let
-  // on this height character moves, if food hits this height, is counted as missed
-  bottomPlane = 46,
-  sprites,
-  //runs the game
-  state = play,
-  // food names to loop over
-  foodsSrc = ["Apple", "Bacon", "Brownie", "Cherry", "Chicken", "Cookie", "Honey", "Jam", "Jerky"],
-  foods = [],
-  score = 0,
-  missed = 0,
-  // will hold character animations
-  animations,
-  char = new Sprite(),
-  gameScene = new Container(),
-  endScene = new Container(),
-  style = new TextStyle({
+let style = new PIXI.TextStyle({
     fontSize: 30,
     fill: "#FFE44C",
   }),
-  endMessage = new Text(`Game over!`, style),
-  endScore = new Text(`Final score: ${score}`, style),
-  scoreDisp = new Text(`Score: ${score}`, style),
-  missedDisp = new Text(`Missed food: ${missed}/10`, style),
+  // plane for character to move
+  bottomPlane = 46,
+  score = 0,
+  missed = 0,
+  // variable for texture atlas
+  sprites,
+  // Scene for gameplay
+  gameScene = new PIXI.Container(),
+  // display current score
+  scoreDisp = new PIXI.Text(`Score: ${score}`, style),
+  //display missed foods count
+  missedDisp = new PIXI.Text(`Missed food: ${missed}/10`, style),
+  //end screen
+  endScene = new PIXI.Container(),
+  endMessage = new PIXI.Text(`Game over!`, style),
+  // display score on end screen
+  endScore = new PIXI.Text(`Final score: ${score}`, style),
+  //character sprite
+  char = new PIXI.Sprite(),
+  // state defines which scene should be visible and runs some functions
+  state = play,
+  // hold names to display proper textures
+  foodsSrc = ["Apple", "Bacon", "Brownie", "Cherry", "Chicken", "Cookie", "Honey", "Jam", "Jerky"],
+  // will hold food added to scene to play
+  foods = [],
+  // will hold name of character movement animation
+  animations,
   left = keyboard(37),
   right = keyboard(39);
 
-loader
+PIXI.loader
   .add("img/sprites.json")
   .add("img/Background.png")
   .load(setup)
 
 function setup() {
-  animations = loader.resources["img/sprites.json"].data.animations;
-  sprites = loader.resources["img/sprites.json"].textures;
-  let background = new Sprite(resources["img/Background.png"].texture);
-  background.x = 0;
-  background.y = 0;
+  // loads textures
+  animations = PIXI.loader.resources["img/sprites.json"].data.animations;
+  sprites = PIXI.loader.resources["img/sprites.json"].textures;
+  let background = new PIXI.Sprite(PIXI.loader.resources["img/Background.png"].texture);
+
+  //add elements to proper scenes
   app.stage.addChild(gameScene, endScene);
   gameScene.addChild(background, char, scoreDisp, missedDisp);
   endScene.addChild(endMessage, endScore);
 
+  //position background
+  background.x = 0;
+  background.y = 0;
+
+  //initial character position and velocity
   char.x = gameScene.width / 2 - char.width / 2;
   char.y = gameScene.height - bottomPlane - 84;
   char.vx = 0;
 
+  //position score display on game scene
   scoreDisp.x = 20;
   scoreDisp.y = 20;
   missedDisp.x = 20;
   missedDisp.y = 50;
 
+  //position game over messages on game over scene
   endMessage.x = 384 - endMessage.width / 2;
   endScore.x = 384 - endScore.width / 2;
   endMessage.y = 228;
   endScore.y = 428;
 
+  // initially hides game over scene
   endScene.visible = false;
 
   app.ticker.add(delta => gameLoop(delta));
@@ -87,7 +92,10 @@ function gameLoop(delta) {
 }
 
 function play(delta) {
+  // character movement
   char.x += char.vx;
+
+  //character boundaries
   contain(char, {
     x: -25,
     y: 0,
@@ -96,24 +104,24 @@ function play(delta) {
   });
 
   foods.forEach(function(food) {
+    // adds velocity to food
     food.y += food.vy
+    //test collision of food with character
     if (hitTestRectangle(char, food)) {
-      gameScene.removeChild(food);
-      food.y = -1000;
-      food.vy = 0;
+      // adds score and removes food from game
+      stopFood(food);
       score += 1;
       scoreDisp.text = `Score: ${score}`;
     } else {
+      // add missed food count and removes food from game
       if (food.y > gameScene.height - bottomPlane) {
-        gameScene.removeChild(food);
-        food.y = -1000;
-        food.vy = 0;
+        stopFood(food);
         missed += 1;
         missedDisp.text = `Missed food: ${missed}/10`;
 
         if (missed >= 10) {
-          food.y = -1000;
-          food.vy = 0;
+          // stops food and ends the game
+          stopFood(food);
           end();
         }
       }
@@ -121,42 +129,45 @@ function play(delta) {
   });
 }
 
+// ends the game
 function end() {
-  state = end;
   gameScene.visible = false;
   endScene.visible = true;
   endMessage.text = (`Game over!`);
   endScore.text = (`Final score: ${score}`);
+  state = end;
 }
 
+//changing textures to animate character
 function animateChar() {
+  // holds one of texturepacker animations array to animate character
   let animation = animations.char_idle;
+  // sets animation to first texture
   let frame = 0;
+  // will hold current texture
   let texture;
-  let animSpeed = 150;
   setInterval(function() {
     if (char.vx > 0) {
       animation = animations.char_right;
-      animSpeed = 50;
       frame = (frame + 1) % animation.length;
     } else if (char.vx < 0) {
       animation = animations.char_left;
-      animSpeed = 50;
       frame = (frame + 1) % animation.length;
     } else {
       animation = animations.char_idle;
-      animSpeed = 150;
       frame = (frame + 1) % animation.length;
     }
     texture = PIXI.Texture.fromFrame(`${animation[frame]}`);
     char.texture = texture;
-  }, animSpeed);
+  }, 80);
 }
 
+//helper function to randomize game
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+// adds food to game scene
 function dropFood() {
   if (missed >= 10) {
     return;
@@ -169,6 +180,13 @@ function dropFood() {
   }
 };
 
+// helper function to stop food from falling after collision
+function stopFood(foodElem) {
+  foodElem.y = -1000;
+  foodElem.vy = 0;
+}
+
+// key input handler
 function keyboard(keyCode) {
   let key = {};
   key.code = keyCode;
@@ -222,8 +240,9 @@ left.release = () => {
   char.vx = 0;
 }
 
+// creates food to add to scene
 function createFood(foodName) {
-  let food = new Sprite(sprites[`${foodName}`]);
+  let food = new PIXI.Sprite(sprites[`${foodName}`]);
   let dim = randomInt(12, 24);
   food.width = dim;
   food.height = dim;
@@ -236,6 +255,7 @@ function createFood(foodName) {
   gameScene.addChild(food);
 }
 
+// sets boundaries
 function contain(sprite, container) {
   let collision = undefined;
   //Left
